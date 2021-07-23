@@ -1,8 +1,10 @@
 import dataclasses
+import urllib.error
 from urllib import parse
 from dataclasses import dataclass, field
 from typing import List
-import requests
+import urllib.request as r
+import gzip
 from lxml import html
 from .utils import retry
 
@@ -81,16 +83,34 @@ class Downloader:
     @staticmethod
     def get(url):
         try:
-            r = requests.get(url)
-        except Exception as e:
-            raise RuntimeError("Could not connect to host") from e
-        else:
-            if r.status_code == 404:
+            headers = {
+                'User-Agent': "python-requests/2.25.1",
+                'Accept-Encoding': 'gzip',
+                'Accept': '*/*',
+                'Connection': 'keep-alive',
+            }
+            req = r.Request(url, headers=headers)
+            res = r.urlopen(req)
+            encoding = res.getheader('Content-Encoding')
+            data = res.read()
+
+            if encoding == 'gzip':
+                data = gzip.decompress(data)
+            elif encoding == 'identity' or not encoding:
+                pass
+            else:
+                raise RuntimeError(f"Encoding is not supported: {encoding}.")
+
+            return data.decode('utf8')
+
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
                 raise PageNotFoundError("Could not find given page.")
-            elif r.status_code != 200:
+            else:
                 raise Not200CodeError(f'Request ended with status code: '
-                             f'{r.status_code}')
-            return r.text
+                                      f'{e.code}')
+        except Exception as e:
+            raise RuntimeError("Could not connect to host.") from e
 
 
 @dataclass
