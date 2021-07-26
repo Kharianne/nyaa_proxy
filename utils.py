@@ -34,3 +34,23 @@ def retry(exceptions, wait=1):
                     time.sleep(wait)
         return func_with_retries
     return retry_decorator
+
+
+class IntegerValidator:
+
+    def __init__(self, mn=None, mx=None):
+        self.mn = mn
+        self.mx = mx
+        self.type = 'int'
+
+    def validate(self, inp):
+        try:
+            value = int(inp)
+        except ValueError:
+            return False
+        else:
+            if (self.mn is None or value >= self.mn) and (self.mx is None or value <= self.mx):
+                return value
+            else:
+                return False
+

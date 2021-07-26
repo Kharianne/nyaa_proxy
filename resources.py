@@ -2,6 +2,7 @@ import falcon
 from .hooks import authorization, validate_params
 from .nyaa_parser import get_search_results, get_details, Not200CodeError, PageNotFoundError
 import json
+from .utils import IntegerValidator
 
 VERSION = '1.0'
 
@@ -9,9 +10,9 @@ VERSION = '1.0'
 class Search:
 
     @falcon.before(authorization)
-    @falcon.before(validate_params, [{'name': 'q', 'value_type': None, 'required': True},
-                                     {'name': 'retry', 'value_type': int, 'required': False},
-                                     {'name': 'p', 'value_type': int, 'required': True}])
+    @falcon.before(validate_params, [{'name': 'q', 'validator': None, 'required': True},
+                                     {'name': 'retry', 'validator': IntegerValidator(mn=0), 'required': False},
+                                     {'name': 'p', 'validator': IntegerValidator(mn=0), 'required': True}])
     def on_get(self, req, resp):
         q = req.get_param('q')
         page_num = req.get_param('p')
@@ -42,7 +43,7 @@ class Search:
 class Detail:
 
     @falcon.before(authorization)
-    @falcon.before(validate_params, [{'name': 'id', 'value_type': int, 'required': True}])
+    @falcon.before(validate_params, [{'name': 'id', 'validator': IntegerValidator(), 'required': True}])
     def on_get(self, req, resp):
         torrent_id = req.get_param('id')
 

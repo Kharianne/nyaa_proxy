@@ -15,20 +15,16 @@ def authorization(req, resp, resource, params):
         raise falcon.HTTPUnauthorized()
 
 
-def validate_params(req, resp, resource, params, validations):
+def evaluate_validation(param_name, value, req, validator):
+    if (val_value := validator.validate(value)) is not False:
+        req.params[param_name] = val_value
+    else:
+        raise falcon.HTTPBadRequest(title="400 Bad Request",
+                                    description=f"Parameter {param_name} has to be {validator.type}. And "
+                                                f"in range of min: {validator.mn}, max: {validator.mx}.")
 
-    def validate_type_and_value(param_name, value, _type):
-        try:
-            req.params[param_name] = _type(value)
-        except (ValueError, TypeError):
-            raise falcon.HTTPBadRequest(title="400 Bad Request",
-                                        description=f"Parameter {param_name} has to be {_type}. "
-                                                    f"{type(value)} given.")
-        else:
-            if not req.params[param_name] >= 0:
-                raise falcon.HTTPBadRequest(title="400 Bad Request",
-                                            description=f"Parameter {param_name} has to be 0 or greater. "
-                                                        f"{value} given.")
+
+def validate_params(req, resp, resource, params, validations):
 
     for val in validations:
         if val['required']:
@@ -36,9 +32,8 @@ def validate_params(req, resp, resource, params, validations):
             if not value:
                 raise falcon.HTTPBadRequest(title="400 Bad Request",
                                             description=f"Parameter {val['name']} is missing or empty.")
-            if val['value_type']:
-                validate_type_and_value(val['name'], value, val['value_type'])
-
+            if validator := val.get('validator'):
+                evaluate_validation(val['name'], value, req, validator)
         else:
-            if (value := req.get_param(val['name'])) and val['value_type']:
-                validate_type_and_value(val['name'], value, val['value_type'])
+            if (value := req.get_param(val['name'])) and (validator := val.get('validator')):
+                evaluate_validation(val['name'], value, req, validator)
