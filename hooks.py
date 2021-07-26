@@ -1,17 +1,20 @@
 import falcon
 from .settings import AUTH_TOKEN
-from .utils import constant_time_compare
+import secrets
+
+AUTH_HEADER = 'WWW-Authenticate'
+AUTH_HEADER_VALUE = 'Bearer realm="nyaaaaaa"'
 
 
-def authorization(req, resp, resource, params):
+def authenticate(req, resp, resource, params):
     auth = req.get_header('Authorization')
     if not auth or not auth.startswith('Bearer '):
-        resp.set_header('WWW-Authenticate', 'Bearer realm="nyaaaaaa"')
+        resp.set_header(AUTH_HEADER, AUTH_HEADER_VALUE)
         raise falcon.HTTPUnauthorized()
 
     auth = auth.removeprefix('Bearer ')
-    if not constant_time_compare(auth, AUTH_TOKEN):
-        resp.set_header('WWW-Authenticate', 'Bearer realm="nyaaaaaa"')
+    if not secrets.compare_digest(auth, AUTH_TOKEN):
+        resp.set_header(AUTH_HEADER, AUTH_HEADER_VALUE)
         raise falcon.HTTPUnauthorized()
 
 

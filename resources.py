@@ -1,6 +1,6 @@
 import falcon
-from .hooks import authorization, validate_params
-from .nyaa_parser import get_search_results, get_details, Not200CodeError, PageNotFoundError
+from .hooks import authenticate, validate_params
+from .nyaa_parser import get_search_results, get_detail, Not200CodeError, PageNotFoundError
 import json
 from .utils import IntegerValidator
 
@@ -9,7 +9,7 @@ VERSION = '1.0'
 
 class Search:
 
-    @falcon.before(authorization)
+    @falcon.before(authenticate)
     @falcon.before(validate_params, [{'name': 'q', 'validator': None, 'required': True},
                                      {'name': 'retry', 'validator': IntegerValidator(mn=0), 'required': False},
                                      {'name': 'p', 'validator': IntegerValidator(mn=0), 'required': True}])
@@ -42,17 +42,18 @@ class Search:
 
 class Detail:
 
-    @falcon.before(authorization)
+    @falcon.before(authenticate)
     @falcon.before(validate_params, [{'name': 'id', 'validator': IntegerValidator(), 'required': True}])
     def on_get(self, req, resp):
         torrent_id = req.get_param('id')
 
         try:
-            res = get_details(torrent_id)
+            res = get_detail(torrent_id)
             doc = {
                 'version': VERSION,
                 'result': res
             }
+
             resp.text = json.dumps(doc)
 
         except PageNotFoundError as e:

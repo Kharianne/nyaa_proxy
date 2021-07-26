@@ -29,7 +29,7 @@ class Config:
 
     @staticmethod
     def get_page(**kwargs):
-        pass
+        raise NotImplementedError()
 
 
 class NyaaSearchConfig(Config):
@@ -110,7 +110,7 @@ class Downloader:
                 raise Not200CodeError(f'Request ended with status code: '
                                       f'{e.code}')
         except Exception as e:
-            raise RuntimeError("Could not connect to host.") from e
+            raise RuntimeError(f"Getting {url} failed.") from e
 
 
 @dataclass
@@ -152,7 +152,7 @@ class Parser:
         self.config = config
 
     def parse(self, page, **kwargs):
-        pass
+        raise NotImplementedError()
 
 
 class SearchParser(Parser):
@@ -167,7 +167,7 @@ class SearchParser(Parser):
             raise KeyError("Argument page_num is missing")
 
         try:
-            self.config.BASE_URL + tree.xpath(self.config.NEXT_PAGE_SELECTOR)[0]
+            tree.xpath(self.config.NEXT_PAGE_SELECTOR)[0]
         except IndexError:
             result.next_page_num = None
         else:
@@ -179,7 +179,7 @@ class SearchParser(Parser):
             result.rows.append(TorrentRow(
                 id=int(_id.split('/')[2]),
                 uploaded=int(row.xpath(self.config.DATA_SELECTOR_SEARCH_UPLOADED)[0]),
-                name=row.xpath(self.config.DATA_SELECTOR_SEARCH_NAME)[0],
+                name=row.xpath(self.config.DATA_SELECTOR_SEARCH_NAME)[0].strip(),
                 magnet=row.xpath(self.config.DATA_SELECTOR_SEARCH_MAGNET)[0],
             ))
         return result
@@ -191,7 +191,7 @@ class DetailParser(Parser):
         tree = html.fromstring(page)
         return TorrentDetail(
             id=kwargs['torrent_id'],
-            uploaded=tree.xpath(self.config.DATA_SELECTOR_DETAIL_UPLOADED)[0],
+            uploaded=int(tree.xpath(self.config.DATA_SELECTOR_DETAIL_UPLOADED)[0]),
             name=tree.xpath(self.config.DATA_SELECTOR_DETAIL_NAME)[0].strip(),
             magnet=tree.xpath(self.config.DATA_SELECTOR_DETAIL_MAGNET)[0],
             files=self.get_files(tree)
@@ -213,7 +213,6 @@ class DetailParser(Parser):
         li = folder.xpath("li")
         for l in li:
             if l.xpath("a[contains(@class, 'folder')]"):
-
                 sub_ul = l.xpath("ul")
                 if len(sub_ul) != 1:
                     raise UnexpectedFilesTreeStructure()
@@ -221,11 +220,8 @@ class DetailParser(Parser):
                               "name": "".join(l.xpath('a/text()')).strip(),
                               "files": self.process_folder(sub_ul[0])})
             else:
-                files.append(
-                    {"type": "file",
-                     "name": "".join(l.xpath('text()')).strip()
-                     }
-                )
+                files.append({"type": "file",
+                              "name": "".join(l.xpath('text()')).strip()})
         return files
 
 
@@ -252,7 +248,7 @@ def get_search_results(query, page_num, retries=None):
 
 
 @retry((RuntimeError, Not200CodeError))
-def get_details(torrent_id, retries=None):
+def get_detail(torrent_id, retries=None):
     down = Downloader()
     parser = DetailParser(NyaaDetailConfig)
     driver = ParserDriver(NyaaDetailConfig, down, parser)

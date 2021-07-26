@@ -1,13 +1,5 @@
 from functools import wraps
 import time
-import secrets
-
-
-def constant_time_compare(val1, val2):
-    """
-    Returns True if the two strings are equal, False otherwise.
-    """
-    return secrets.compare_digest(val1, val2)
 
 
 def retry(exceptions, wait=1):
